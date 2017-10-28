@@ -26,8 +26,7 @@
                     return true; // All log levels are enabled
                 }
 
-                ConsoleColor consoleColor;
-                if (Colors.TryGetValue(logLevel, out consoleColor))
+                if (Colors.TryGetValue(logLevel, out var consoleColor))
                 {
                     var originalForground = Console.ForegroundColor;
                     try
