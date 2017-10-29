@@ -22,7 +22,7 @@
         public Log4NetLogProviderLoggingTests()
         {
             _memoryAppender = new MemoryAppender();
-            BasicConfigurator.Configure(LogManager.GetRepository(Assembly.GetAssembly(typeof(LogManager))), _memoryAppender);
+            BasicConfigurator.Configure(LogManager.GetRepository(typeof(LogManager).GetAssemblyPortable()), _memoryAppender);
             _logProvider = new Log4NetLogProvider();
             _sut = new LoggerExecutionWrapper(new Log4NetLogProvider().GetLogger("Test"));
         }
