@@ -37,6 +37,12 @@
 
 #pragma warning disable 1591
 
+#if !LIBLOG_NETSTANDARD
+#if NETSTANDARD1_0 || NETSTANDARD1_1 || NETSTANDARD1_2 || NETSTANDARD1_3 || NETSTANDARD1_4 || NETSTANDARD1_5 || NETSTANDARD1_6 || NETCOREAPP1_0 || NETCOREAPP1_1
+#define LIBLOG_NETSTANDARD
+#endif
+#endif
+
 using System.Diagnostics.CodeAnalysis;
 
 [assembly: SuppressMessage("Microsoft.Design", "CA1020:AvoidNamespacesWithFewTypes", Scope = "namespace", Target = "YourRootNamespace.Logging")]
@@ -118,7 +124,9 @@ namespace YourRootNamespace.Logging
     }
 
 #if !LIBLOG_PROVIDERS_ONLY
+#if !LIBLOG_NETSTANDARD
     [ExcludeFromCodeCoverage]
+#endif
 #if LIBLOG_PUBLIC
     public
 #else
@@ -493,7 +501,9 @@ namespace YourRootNamespace.Logging
     /// <summary>
     /// Provides a mechanism to create instances of <see cref="ILog" /> objects.
     /// </summary>
+#if !LIBLOG_NETSTANDARD
     [ExcludeFromCodeCoverage]
+#endif
 #if LIBLOG_PROVIDERS_ONLY
     internal
 #else
@@ -562,6 +572,7 @@ namespace YourRootNamespace.Logging
 #endif
         static ILog For<T>() => GetLogger(typeof(T));
 
+#if !LIBLOG_NETSTANDARD
         /// <summary>
         /// Gets a logger for the current class.
         /// </summary>
@@ -577,7 +588,8 @@ namespace YourRootNamespace.Logging
             var stackFrame = new StackFrame(1, false);
             return GetLogger(stackFrame.GetMethod().DeclaringType);
         }
-
+#endif
+ 
         /// <summary>
         /// Gets a logger for the specified type.
         /// </summary>
@@ -656,7 +668,7 @@ namespace YourRootNamespace.Logging
 #if LIBLOG_PROVIDERS_ONLY
     private
 #else
-    internal
+        internal
 #endif
     delegate bool IsLoggerAvailable();
 
@@ -721,7 +733,9 @@ namespace YourRootNamespace.Logging
         }
 
 #if !LIBLOG_PROVIDERS_ONLY
+#if !LIBLOG_NETSTANDARD
         [ExcludeFromCodeCoverage]
+#endif
         internal class NoOpLogger : ILog
         {
             internal static readonly NoOpLogger Instance = new NoOpLogger();
@@ -735,7 +749,9 @@ namespace YourRootNamespace.Logging
     }
 
 #if !LIBLOG_PROVIDERS_ONLY
+#if !LIBLOG_NETSTANDARD
     [ExcludeFromCodeCoverage]
+#endif
     internal class LoggerExecutionWrapper : ILog
     {
         private readonly Logger _logger;
@@ -764,7 +780,7 @@ namespace YourRootNamespace.Logging
             {
                 return _logger(logLevel, null);
             }
-
+#if !LIBLOG_NETSTANDARD
             // Callsite HACK - Using the messageFunc to provide the callsite-logger-type
             var lastExtensionMethod = _lastExtensionMethod;
             if (lastExtensionMethod == null || !lastExtensionMethod.Equals(messageFunc))
@@ -785,21 +801,25 @@ namespace YourRootNamespace.Logging
                 return _logger(logLevel, LogExtensions.WrapLogSafeInternal(this, messageFunc), exception, formatParameters);
             }
 
-            string WrappedMessageFunc()
+            else
+#endif
             {
-                try
+                string WrappedMessageFunc()
                 {
-                    return messageFunc();
+                    try
+                    {
+                        return messageFunc();
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger(LogLevel.Error, () => FailedToGenerateLogMessage, ex);
+                    }
+                    return null;
                 }
-                catch (Exception ex)
-                {
-                    _logger(LogLevel.Error, () => FailedToGenerateLogMessage, ex);
-                }
-                return null;
-            }
 
-            // Callsite HACK - Need to ensure proper callsite stack without inlining, so calling the logger within a virtual interface method
-            return _callsiteLogger.Log(_logger, logLevel, WrappedMessageFunc, exception, formatParameters);
+                // Callsite HACK - Need to ensure proper callsite stack without inlining, so calling the logger within a virtual interface method
+                return _callsiteLogger.Log(_logger, logLevel, WrappedMessageFunc, exception, formatParameters);
+            }
         }
 
         private interface ICallSiteExtension
@@ -836,14 +856,16 @@ namespace YourRootNamespace.LibLog.LogProviders
     using System;
     using System.Collections.Generic;
     using System.Diagnostics.CodeAnalysis;
-    using System.Diagnostics;
     using System.Globalization;
     using System.Linq;
     using System.Linq.Expressions;
     using System.Reflection;
     using System.Text.RegularExpressions;
 
+#if !LIBLOG_NETSTANDARD
+    using System.Diagnostics;
     [ExcludeFromCodeCoverage]
+#endif
     internal abstract class LogProviderBase : ILogProvider
     {
         protected delegate IDisposable OpenNdc(string message);
@@ -875,7 +897,9 @@ namespace YourRootNamespace.LibLog.LogProviders
             => (_, __, ___) => NoopDisposableInstance;
     }
 
+#if !LIBLOG_NETSTANDARD
     [ExcludeFromCodeCoverage]
+#endif
     internal class NLogLogProvider : LogProviderBase
     {
         private readonly Func<string, object> _getLoggerByNameDelegate;
@@ -946,7 +970,9 @@ namespace YourRootNamespace.LibLog.LogProviders
             return Expression.Lambda<Func<string, object>>(methodCall, nameParam).Compile();
         }
 
+#if !LIBLOG_NETSTANDARD
         [ExcludeFromCodeCoverage]
+#endif
         internal class NLogLogger
         {
             private readonly dynamic _logger;
@@ -1021,8 +1047,9 @@ namespace YourRootNamespace.LibLog.LogProviders
                 {
                     return IsLogLevelEnable(logLevel);
                 }
-
+#if !LIBLOG_NETSTANDARD
                 var callsiteMessageFunc = messageFunc;
+#endif
                 messageFunc = LogMessageFormatter.SimulateStructuredLogging(messageFunc, formatParameters);
 
                 if (_logEventInfoFact != null)
@@ -1032,6 +1059,8 @@ namespace YourRootNamespace.LibLog.LogProviders
                         return false;
                     }
                     var callsiteLoggerType = typeof(NLogLogger);
+
+#if !LIBLOG_NETSTANDARD
                     // Callsite HACK - Extract the callsite-logger-type from the messageFunc
                     var methodType = callsiteMessageFunc.Method.DeclaringType;
                     if (methodType == typeof(LogExtensions) || (methodType != null && methodType.DeclaringType == typeof(LogExtensions)))
@@ -1042,7 +1071,8 @@ namespace YourRootNamespace.LibLog.LogProviders
                     {
                         callsiteLoggerType = typeof(LoggerExecutionWrapper);
                     }
-                    var nlogLevel = this.TranslateLevel(logLevel);
+#endif
+                    var nlogLevel = TranslateLevel(logLevel);
                     var nlogEvent = _logEventInfoFact(_logger.Name, nlogLevel, messageFunc(), exception);
                     _logger.Log(callsiteLoggerType, nlogEvent);
                     return true;
@@ -1194,7 +1224,9 @@ namespace YourRootNamespace.LibLog.LogProviders
         }
     }
 
+#if !LIBLOG_NETSTANDARD
     [ExcludeFromCodeCoverage]
+#endif
     internal class Log4NetLogProvider : LogProviderBase
     {
         private readonly Func<string, object> _getLoggerByNameDelegate;
@@ -1286,7 +1318,7 @@ namespace YourRootNamespace.LibLog.LogProviders
         private static Func<string, object> GetGetLoggerMethodCall()
         {
             var logManagerType = GetLogManagerType();
-            var log4netAssembly = Assembly.GetAssembly(logManagerType);
+            var log4netAssembly = logManagerType.GetAssemblyPortable();
             var method = logManagerType.GetMethodPortable("GetLogger", typeof(Assembly),  typeof(string));
             var repositoryAssemblyParam = Expression.Parameter(typeof(Assembly), "repositoryAssembly");
             var nameParam = Expression.Parameter(typeof(string), "name");
@@ -1295,7 +1327,9 @@ namespace YourRootNamespace.LibLog.LogProviders
             return name => lambda(log4netAssembly, name);
         }
 
+#if !LIBLOG_NETSTANDARD
         [ExcludeFromCodeCoverage]
+#endif
         internal class Log4NetLogger
         {
             private readonly dynamic _logger;
@@ -1482,6 +1516,7 @@ namespace YourRootNamespace.LibLog.LogProviders
                 {
                     lock (CallerStackBoundaryTypeSync)
                     {
+#if !LIBLOG_NETSTANDARD
                         var stack = new StackTrace();
                         var thisType = GetType();
                         s_callerStackBoundaryType = Type.GetType("LoggerExecutionWrapper");
@@ -1493,6 +1528,9 @@ namespace YourRootNamespace.LibLog.LogProviders
                                 break;
                             }
                         }
+#else
+                        s_callerStackBoundaryType = typeof(LoggerExecutionWrapper);
+#endif
                     }
                 }
 
@@ -1560,7 +1598,9 @@ namespace YourRootNamespace.LibLog.LogProviders
         }
     }
 
+#if !LIBLOG_NETSTANDARD
     [ExcludeFromCodeCoverage]
+#endif
     internal class SerilogLogProvider : LogProviderBase
     {
         private readonly Func<string, object> _getLoggerByNameDelegate;
@@ -1645,7 +1685,9 @@ namespace YourRootNamespace.LibLog.LogProviders
             return name => func("SourceContext", name, false);
         }
 
+#if !LIBLOG_NETSTANDARD
         [ExcludeFromCodeCoverage]
+#endif
         internal class SerilogLogger
         {
             private readonly object _logger;
@@ -1790,7 +1832,9 @@ namespace YourRootNamespace.LibLog.LogProviders
         }
     }
 
+#if !LIBLOG_NETSTANDARD
     [ExcludeFromCodeCoverage]
+#endif
     internal class LoupeLogProvider : LogProviderBase
     {
         /// <summary>
@@ -1852,7 +1896,9 @@ namespace YourRootNamespace.LibLog.LogProviders
             return callDelegate;
         }
 
+#if !LIBLOG_NETSTANDARD
         [ExcludeFromCodeCoverage]
+#endif
         internal class LoupeLogger
         {
             private const string LogSystem = "LibLog";
@@ -1911,7 +1957,7 @@ namespace YourRootNamespace.LibLog.LogProviders
         }
     }
 
-#if !LIBLOG_PORTABLE
+#if !LIBLOG_NETSTANDARD
     [ExcludeFromCodeCoverage]
 #endif
     internal static class TraceEventTypeValues
@@ -1941,10 +1987,16 @@ namespace YourRootNamespace.LibLog.LogProviders
         }
     }
 
+#if !LIBLOG_NETSTANDARD
     [ExcludeFromCodeCoverage]
+#endif
     internal static class LogMessageFormatter
     {
+#if NETSTANDARD1_0 || NETSTANDARD1_1 || NETSTANDARD1_2
+        private static readonly Regex Pattern = new Regex(@"(?<!{){@?(?<arg>[^ :{}]+)(?<format>:[^}]+)?}");
+#else
         private static readonly Regex Pattern = new Regex(@"(?<!{){@?(?<arg>[^ :{}]+)(?<format>:[^}]+)?}", RegexOptions.Compiled);
+#endif
 
         /// <summary>
         /// Some logging frameworks support structured logging, such as serilog. This will allow you to add names to structured data in a format string:
@@ -2020,35 +2072,101 @@ namespace YourRootNamespace.LibLog.LogProviders
         }
     }
 
+#if !LIBLOG_NETSTANDARD
     [ExcludeFromCodeCoverage]
+#endif
     internal static class TypeExtensions
     {
-        internal static ConstructorInfo GetConstructorPortable(this Type type, params Type[] types) 
-            => type.GetConstructor(types);
+        internal static ConstructorInfo GetConstructorPortable(this Type type, params Type[] types)
+        {
+#if LIBLOG_NETSTANDARD
+            return type.GetTypeInfo().DeclaredConstructors.FirstOrDefault
+                       (constructor =>
+                            constructor.GetParameters()
+                                       .Select(parameter => parameter.ParameterType)
+                                       .SequenceEqual(types));
+#else
+            return type.GetConstructor(types);
+#endif
+        }
 
-        internal static MethodInfo GetMethodPortable(this Type type, string name) 
-            => type.GetMethod(name);
+        internal static MethodInfo GetMethodPortable(this Type type, string name)
+        {
+#if LIBLOG_NETSTANDARD
+            return type.GetRuntimeMethods().SingleOrDefault(m => m.Name == name);
+#else
+            return type.GetMethod(name);
+#endif
+        }
 
         internal static MethodInfo GetMethodPortable(this Type type, string name, params Type[] types)
-            => type.GetRuntimeMethod(name, types);
+        {
+#if LIBLOG_NETSTANDARD
+            return type.GetRuntimeMethod(name, types);
+#else
+            return type.GetMethod(name, types);
+#endif
+        }
 
         internal static PropertyInfo GetPropertyPortable(this Type type, string name)
-            => type.GetProperty(name);
+        {
+#if LIBLOG_NETSTANDARD
+            return type.GetRuntimeProperty(name);
+#else
+            return type.GetProperty(name);
+#endif
+        }
 
         internal static IEnumerable<FieldInfo> GetFieldsPortable(this Type type)
-            => type.GetFields();
+        {
+#if LIBLOG_NETSTANDARD
+            return type.GetRuntimeFields();
+#else
+            return type.GetFields();
+#endif
+        }
 
         internal static Type GetBaseTypePortable(this Type type)
-            => type.BaseType;
+        {
+#if LIBLOG_NETSTANDARD
+            return type.GetTypeInfo().BaseType;
+#else
+            return type.BaseType;
+#endif
+        }
 
+#if LIBLOG_NETSTANDARD
+        internal static MethodInfo GetGetMethod(this PropertyInfo propertyInfo)
+        {
+            return propertyInfo.GetMethod;
+        }
+
+        internal static MethodInfo GetSetMethod(this PropertyInfo propertyInfo)
+        {
+            return propertyInfo.SetMethod;
+        }
+#endif
+
+#if !LIBLOG_NETSTANDARD
         internal static object CreateDelegate(this MethodInfo methodInfo, Type delegateType)
-            => Delegate.CreateDelegate(delegateType, methodInfo);
+        {
+            return Delegate.CreateDelegate(delegateType, methodInfo);
+        }
+#endif
 
         internal static Assembly GetAssemblyPortable(this Type type)
-            => type.Assembly;
+        {
+#if LIBLOG_NETSTANDARD
+            return type.GetTypeInfo().Assembly;
+#else
+            return type.Assembly;
+#endif
+        }
     }
 
+#if !LIBLOG_NETSTANDARD
     [ExcludeFromCodeCoverage]
+#endif
     internal class DisposableAction : IDisposable
     {
         private readonly Action _onDispose;
