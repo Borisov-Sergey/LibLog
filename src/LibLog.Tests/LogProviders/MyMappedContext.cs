@@ -4,23 +4,15 @@
 
     internal class MyMappedContext
     {
-        public int ThirtySeven
-        {
-            get
-            {
-                return 37;
-            }
-        }
+        public int ThirtySeven => 37;
 
-        public string Name { get => name; set => name = value; }
-        public LogLevel Level { get => level; set => level = value; }
+        public string Name { get; set; } = "World";
 
-        string name = "World";
-        LogLevel level = LogLevel.Trace;
+        public LogLevel Level { get; set; } = LogLevel.Trace;
 
         public override string ToString()
         {
-            return name;
+            return Name;
         }
     }
 }
