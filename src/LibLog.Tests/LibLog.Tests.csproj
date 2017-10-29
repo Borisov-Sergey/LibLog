@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>netcoreapp2.0</TargetFramework>
+    <TargetFrameworks>netcoreapp1.1;netcoreapp2.0;net461</TargetFrameworks>
     <RootNamespace>LibLog.Logging</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
@@ -18,5 +18,10 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\LibLog\LibLog.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="app.config">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 </Project>
